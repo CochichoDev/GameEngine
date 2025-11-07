@@ -12,7 +12,18 @@ class MPSCQueue {
             m_tail = stub;
         }
 
-        void enqueue(T& v) noexcept {
+        ~MPSCQueue() {
+            Node* curr = m_tail;
+
+            while (curr != nullptr) {
+                Node* next = curr->next.load(std::memory_order_relaxed);
+                delete curr;
+                curr = next;
+            }
+        }
+
+        /* Thread safe for multiple producers */
+        void enqueue(const T& v) noexcept {
             Node* stub = new Node(v);
             stub->next.store(nullptr, std::memory_order_relaxed);
 
@@ -20,8 +31,16 @@ class MPSCQueue {
             prev->next.store(stub, std::memory_order_release);
         }
 
-        T* dequeue() noexcept {
-            
+        bool dequeue(T& v) noexcept {
+            Node* next = m_tail->next.load(std::memory_order_acquire);
+            if (!next) return false;
+
+            v = std::move(next->value);
+
+            delete m_tail;
+            m_tail = next;
+
+            return true;
         }
 
     private:
