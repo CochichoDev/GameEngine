@@ -20,6 +20,7 @@ set(SOURCES
 )
 
 set(HEADERS
+    include/
 )
 
 function(add_variant name define)
