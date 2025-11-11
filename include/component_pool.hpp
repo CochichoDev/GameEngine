@@ -21,7 +21,7 @@ using SwapNotifyFunc = std::function<void(EntityID eid, size_t dst_idx)>;
 
 template<typename T>
 class ComponentPool {
-    private:
+    public:
         void reserve(std::size_t size) {
             m_data.reserve(size);
         }
@@ -42,9 +42,9 @@ class ComponentPool {
             return m_data[idx];
         }
 
-        size_t add(EntityID owner, T& data) {
+        size_t add(EntityID owner, const T& data) {
             size_t idx = m_data.size();
-            m_data.emplace_back(owner, data);
+            m_data.emplace_back(ComponentEntry<T>(owner, data));
             m_lookup.emplace(owner, idx);
             return idx;
         }
