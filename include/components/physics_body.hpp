@@ -5,7 +5,7 @@
 
 #include "entity.hpp"
 #include "physics.hpp"
-#include "vector2d.hpp"
+#include "vector.hpp"
 
 class PhysicsBody {
     public:

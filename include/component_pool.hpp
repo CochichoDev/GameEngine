@@ -22,6 +22,9 @@ using SwapNotifyFunc = std::function<void(EntityID eid, size_t dst_idx)>;
 template<typename T>
 class ComponentPool {
     public:
+        using iterator = typename std::vector<T>::iterator;
+
+    public:
         void reserve(std::size_t size) {
             m_data.reserve(size);
         }
@@ -71,6 +74,13 @@ class ComponentPool {
         }
 
         void set_swap_notify_func(SwapNotifyFunc fn) { m_swap_notify = std::move(fn); }
+
+        iterator begin() {
+            return m_data.begin();
+        }
+        iterator end() {
+            return m_data.end();
+        }
 
     private:
         std::vector<ComponentEntry<T>>  m_data;

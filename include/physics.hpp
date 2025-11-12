@@ -12,7 +12,7 @@
 #include <thread>
 
 #include "entity.hpp"
-#include "vector2d.hpp"
+#include "vector.hpp"
 #include "mpsc.hpp"
 
 struct PhysicsSnapshot {
