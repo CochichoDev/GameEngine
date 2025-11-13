@@ -5,6 +5,4 @@
 
 using EntityID = uint32_t;
 
-class 
-
 #endif

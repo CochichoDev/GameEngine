@@ -9,6 +9,7 @@
 #include "components/drawable_rect.hpp"
 
 #include "RAII/SDL.hpp"
+#include "ctime_typemap.hpp"
 #include "physics.hpp"
 #include "component_pool.hpp"
 #include "renderer.hpp"
@@ -21,6 +22,10 @@ class World {
         , m_renderer        (&m_sdl_window)
         {
             m_running.store(false, std::memory_order_relaxed);
+
+            m_pools.for_each([](auto& pool) {
+                pool.init();
+            });
         }
 
         ~World() = default;
@@ -30,16 +35,6 @@ class World {
         void run() {
             m_running.store(true, std::memory_order_relaxed);
             m_world_thread = std::thread(&World::loop, this);
-        }
-
-        void add_component(EntityID owner, Transform& transform) {
-            m_c_transform.add(owner, transform);
-        }
-        void add_component(EntityID owner, Drawable& drawable) {
-            m_c_drawables.add(owner, drawable);
-        }
-        void add_component(EntityID owner, PhysicsBody& body) {
-            m_c_physics.add(owner, body);
         }
 
     private:
@@ -99,10 +94,12 @@ class World {
         PhysicsCore m_physics;
         Renderer    m_renderer;
 
-        ComponentPool<Transform>    m_c_transform;
-        ComponentPool<PhysicsBody>  m_c_physics;
-        ComponentPool<Drawable>     m_c_drawables;
-        
+        TypeMap<
+            ComponentPool<Transform>,
+            ComponentPool<PhysicsBody>,
+            ComponentPool<RectangleDrawable>
+        > m_pools;
+
         static constexpr double m_dt = 1.0 / 60.0;
         
         static constexpr std::chrono::steady_clock::duration m_period =

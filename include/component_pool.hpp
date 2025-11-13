@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "entity.hpp"
+#include "ctime_typemap.hpp"
 
 
 template<typename T>
@@ -17,14 +18,31 @@ struct ComponentEntry {
     T           data;
 };
 
-using SwapNotifyFunc = std::function<void(EntityID eid, size_t dst_idx)>;
+template<typename T>
+class ComponentPool;
+
+template<typename T>
+class ComponentPoolTraits {
+    template<typename... Ts>
+    static void init(ComponentPool<T>&, TypeMap<Ts...>&);
+};
 
 template<typename T>
 class ComponentPool {
     public:
         using iterator = typename std::vector<T>::iterator;
 
+        using RemoveNotifyFn = std::function<void(EntityID owner)>;
+        using SwapNotifyFn = std::function<void(EntityID owner, size_t new_idx)>;
+
     public:
+        ComponentPool() = default;
+
+        template<typename... Ts>
+        void init(TypeMap<Ts...>& pools) {
+            ComponentPoolTraits<T>::init(*this, pools);
+        }
+
         void reserve(std::size_t size) {
             m_data.reserve(size);
         }
@@ -61,11 +79,17 @@ class ComponentPool {
                 std::swap(m_data[idx], m_data[last_idx]);
                 m_lookup[m_data[idx].owner] = idx;
                 
-                if (m_swap_notify) m_swap_notify(m_data[idx].owner, idx);
+                for (auto& fn : m_swap_listeners) {
+                    fn(m_data[idx].owner, idx);
+                }
             }
 
+            for (auto& fn : m_remove_listeners) {
+                fn(eid);
+            }
             m_data.pop_back();
             m_lookup.erase(it);
+
             return true;
         }
 
@@ -73,7 +97,12 @@ class ComponentPool {
             return m_data.size();
         }
 
-        void set_swap_notify_func(SwapNotifyFunc fn) { m_swap_notify = std::move(fn); }
+        void subscribe_swap_listener(SwapNotifyFn& fn) {
+            m_swap_listeners.push_back(std::move(fn));
+        }
+        void subscribe_remove_listener(RemoveNotifyFn fn) {
+            m_remove_listeners.push_back(std::move(fn));
+        }
 
         iterator begin() {
             return m_data.begin();
@@ -86,7 +115,8 @@ class ComponentPool {
         std::vector<ComponentEntry<T>>  m_data;
         std::unordered_map<EntityID, std::size_t> m_lookup;
 
-        SwapNotifyFunc  m_swap_notify;
+        std::vector<SwapNotifyFn> m_swap_listeners;
+        std::vector<RemoveNotifyFn> m_remove_listeners;
 };
 
 #endif
