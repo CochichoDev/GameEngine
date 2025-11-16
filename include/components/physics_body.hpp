@@ -3,18 +3,23 @@
 
 #include <cstddef>
 
-#include "ctime_typemap.hpp"
+#include "containers/typemap.hpp"
+#include "containers/component_pool.hpp"
+
+#include "components/transform.hpp"
+
 #include "entity.hpp"
 #include "physics.hpp"
 #include "vector.hpp"
-#include "transform.hpp"
-#include "component_pool.hpp"
+
+struct PhysicsRegistry;
 
 class PhysicsBody {
     public:
-        explicit PhysicsBody(PhysicsCore& physics, EntityID eid, ComponentPool<Transform>& transform_pool)
+        explicit PhysicsBody(PhysicsCore& physics, EntityID eid, size_t transform_idx)
         : m_physics (physics)
         , m_eid (eid)
+        , transform_idx (transform_idx)        
         {
             m_physics.add_physics_entity(
                     eid, transform_idx, Vector2D{0,0}, speed, Vector2D{0,0}
@@ -35,15 +40,15 @@ class PhysicsBody {
 };
 
 template<>
-class ComponentPoolTraits<PhysicsBody> {
-    template<typename... Ts>
-    static void init(ComponentPool<PhysicsBody>& self, TypeMap<Ts...>& pools) {
-        pools.template get<Transform>().subscribe_remove_listener(
+class ComponentPoolTraits<PhysicsBody, PhysicsRegistry> {
+    template<typename... Ts, typename R>
+    static void init(ComponentPool<PhysicsBody, PhysicsRegistry>& self, TypeMap<Ts...>& pools) {
+        pools.template get<ComponentPool<Transform>>().subscribe_remove_listener(
             [&](EntityID owner) {
                 self.remove(owner);
             }
         );
-        pools.template get<Transform>().subscribe_swap_listener(
+        pools.template get<ComponentPool<Transform>>().subscribe_swap_listener(
             [&](EntityID owner, size_t new_idx) {
                 auto idx = self.find(owner);
                 if (idx.has_value()) {

@@ -11,9 +11,10 @@
 #include <cstddef>
 #include <thread>
 
+#include "containers/mpsc.hpp"
+
 #include "entity.hpp"
 #include "vector.hpp"
-#include "mpsc.hpp"
 
 struct PhysicsSnapshot {
     EntityID    id;

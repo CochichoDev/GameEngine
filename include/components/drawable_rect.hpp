@@ -1,19 +1,38 @@
 #ifndef DRAWABLE_RECT_H
 #define DRAWABLE_RECT_H
 
-#include<functional>
+#include <cstddef>
 
-#include "renderer.hpp"
-#include "vector.hpp"
-#include "transform.hpp"
-#include "component_pool.hpp"
+#include "containers/registry.hpp"
+
+#include "components/transform.hpp"
 
 class RectangleDrawable {
     public:
         explicit RectangleDrawable (size_t transform_idx) : transform_idx (transform_idx) {}
 
     public:
-        size_t transform_idx;
+        std::size_t transform_idx;
+};
+
+template<>
+class ComponentPoolTraits<RectangleDrawable, RenderRegistry> {
+    template<typename... Ts, typename R>
+    static void init(ComponentPool<RectangleDrawable, RenderRegistry>& self, TypeMap<Ts...>& pools) {
+        pools.template get<ComponentPool<Transform>>().subscribe_remove_listener(
+            [&](EntityID owner) {
+                self.remove(owner);
+            }
+        );
+        pools.template get<ComponentPool<Transform>>().subscribe_swap_listener(
+            [&](EntityID owner, size_t new_idx) {
+                auto idx = self.find(owner);
+                if (idx.has_value()) {
+                    self.entry_at(idx.value()).data.transform_idx = new_idx;
+                }
+            }
+        );
+    }
 };
 
 #endif

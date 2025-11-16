@@ -1,12 +1,13 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
-#include <array>
 #include <thread>
 
 #include "SDL3/SDL_pixels.h"
 #include "SDL3/SDL_rect.h"
-#include "triple_buffer.hpp"
+
+#include "containers/triple_buffer.hpp"
+
 #include "vector.hpp"
 #include "colors.hpp"
 #include "RAII/SDL.hpp"
