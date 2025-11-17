@@ -20,13 +20,26 @@ template<typename T>
 struct ComponentEntry {
     EntityID    owner;
     T           data;
+
+    ComponentEntry(ComponentEntry&& other) noexcept 
+        : owner (std::move(other.owner))
+        , data (std::move(other.data))
+    {}
+
+    ComponentEntry& operator=(ComponentEntry&& other) noexcept {
+        if (this != &other ) {
+            owner = other.owner;
+            data = std::move(other.data);
+        }
+        return *this;
+    }
 };
 
 template<typename T, typename R>
 class ComponentPool;
 
 template<typename T, typename R>
-class ComponentPoolTraits {
+struct ComponentPoolTraits {
     template<typename... Ts>
     static void init(ComponentPool<T, R>&, TypeMap<Ts...>&);
 };
@@ -52,7 +65,7 @@ class ComponentPool {
         template<typename... Ts>
         void init(TypeMap<Ts...>& pools) {
             ComponentPoolTraits<T, R>::init(*this, pools);
-            m_pool_id = pools.template find<T>();
+            m_pool_id = pools.template find<ComponentPool<T, R>>();
         }
 
         void reserve(std::size_t size) {
@@ -94,7 +107,8 @@ class ComponentPool {
             size_t idx = it->second;
             size_t last_idx = m_data.size() - 1;
             if (idx != last_idx) {
-                std::swap(m_data[idx], m_data[last_idx]);
+                m_data[idx].~ComponentEntry<T>();
+                new (&m_data[idx]) ComponentEntry<T>(std::move(m_data[last_idx]));
                 m_lookup[m_data[idx].owner] = idx;
                 
                 for (auto& fn : m_swap_listeners) {
@@ -107,7 +121,7 @@ class ComponentPool {
             }
 
             if constexpr (!std::is_void_v<R>) {
-                m_reg->remove(eid);
+                m_reg->data.remove(eid);
             }
 
             m_data.pop_back();
@@ -120,7 +134,7 @@ class ComponentPool {
             return m_data.size();
         }
 
-        void subscribe_swap_listener(SwapNotifyFn& fn) {
+        void subscribe_swap_listener(SwapNotifyFn fn) {
             m_swap_listeners.push_back(std::move(fn));
         }
         void subscribe_remove_listener(RemoveNotifyFn fn) {

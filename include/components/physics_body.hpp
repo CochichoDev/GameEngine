@@ -17,9 +17,10 @@ struct PhysicsRegistry;
 class PhysicsBody {
     public:
         explicit PhysicsBody(PhysicsCore& physics, EntityID eid, size_t transform_idx)
-        : m_physics (physics)
-        , m_eid (eid)
-        , transform_idx (transform_idx)        
+            : m_physics (physics)
+            , m_valid (true)
+            , m_eid (eid)
+            , transform_idx (transform_idx)        
         {
             m_physics.add_physics_entity(
                     eid, transform_idx, Vector2D{0,0}, speed, Vector2D{0,0}
@@ -27,11 +28,24 @@ class PhysicsBody {
         }
 
         ~PhysicsBody() {
-            m_physics.del_physics_entity(m_eid);
+            if (m_valid) 
+                m_physics.del_physics_entity(m_eid);
         }
+
+        PhysicsBody(PhysicsBody&& other) noexcept
+            : m_physics (other.m_physics) 
+            , m_valid (true)
+            , m_eid (std::move(other.m_eid))
+            , transform_idx (std::move(other.transform_idx))
+            , speed (std::move(other.speed))
+        {
+            other.m_valid = false;
+        }
+        PhysicsBody& operator=(PhysicsBody&& other) noexcept = delete;
 
     private:
         PhysicsCore&    m_physics;
+        bool        m_valid;
         EntityID    m_eid;
 
     public:
@@ -40,8 +54,8 @@ class PhysicsBody {
 };
 
 template<>
-class ComponentPoolTraits<PhysicsBody, PhysicsRegistry> {
-    template<typename... Ts, typename R>
+struct ComponentPoolTraits<PhysicsBody, PhysicsRegistry> {
+    template<typename... Ts>
     static void init(ComponentPool<PhysicsBody, PhysicsRegistry>& self, TypeMap<Ts...>& pools) {
         pools.template get<ComponentPool<Transform>>().subscribe_remove_listener(
             [&](EntityID owner) {

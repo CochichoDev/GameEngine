@@ -10,8 +10,8 @@ struct Transform {
 };
 
 template<>
-class ComponentPoolTraits<Transform, void> {
-    template<typename... Ts, typename R>
+struct ComponentPoolTraits<Transform, void> {
+    template<typename... Ts>
     static void init(ComponentPool<Transform, void>&, TypeMap<Ts...>&) {
         return;
     }

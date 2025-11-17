@@ -13,7 +13,7 @@ struct TypeMapNode<T, Ts...> {
     TypeMapNode<Ts...> next;
 
     template<typename Arg, typename... Args>
-    TypeMapNode(Arg a, Args... as) : value (a), next (as...) {}
+    TypeMapNode(Arg&& a, Args&&... as) : value (std::forward<Arg>(a)), next (std::forward<Args>(as)...) {}
 };
 
 template<>
@@ -21,8 +21,11 @@ struct TypeMapNode<> {};
 
 template<typename U, typename T, typename... Ts>
 U& get(TypeMapNode<T, Ts...>& node) {
-    if constexpr (std::is_same_v<U, T>) return node.value;
-    return get<U>(node.next);
+    if constexpr (std::is_same_v<U, T>) {
+        return node.value;
+    } else {
+        return get<U>(node.next);
+    }
 }
 
 template<typename U>

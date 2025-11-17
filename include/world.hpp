@@ -61,7 +61,7 @@ class World {
                 
                 for (size_t idx = 0; idx < last_snapshot.size(); ++idx) {
                     const PhysicsSnapshot& snap = last_snapshot[idx];
-                    auto& transform_c = m_pools.get<ComponentPool<Transform>>().entry_at(snap.transform_idx);
+                    auto& transform_c = m_pools.get<ComponentPool<Transform, void>>().entry_at(snap.transform_idx);
                     /* Update the position of the Entity */
                     if (snap.id == transform_c.owner) {
                         transform_c.data.value = snap.pos;
@@ -83,19 +83,12 @@ class World {
                         auto& comp = pool.entry_at(renderable.comp_idx).data;
                         comp.build_render_cmd(
                                 render_commands,
-                                this->m_pools.get<ComponentPool<Transform>>().entry_at(comp.transform_idx));
+                                this->m_pools.get<ComponentPool<Transform, void>>().entry_at(comp.transform_idx));
                     }
                 });
             }
             m_renderer.publish_frame(std::move(render_commands));
         }
-
-    private:
-        using VariantPool = std::variant<
-            ComponentPool<Transform>*,
-            ComponentPool<PhysicsBody, PhysicsRegistry>*,
-            ComponentPool<RectangleDrawable, RenderRegistry>*
-        >;
 
     private:
         std::thread m_world_thread;
@@ -111,11 +104,11 @@ class World {
         RenderRegistry  m_render_reg;
 
         TypeMap<
-            ComponentPool<Transform>,
+            ComponentPool<Transform, void>,
             ComponentPool<PhysicsBody, PhysicsRegistry>,
             ComponentPool<RectangleDrawable, RenderRegistry>
         > m_pools{
-            ComponentPool<Transform>{},
+            ComponentPool<Transform, void>{},
             ComponentPool<PhysicsBody, PhysicsRegistry>{&m_physics_reg},
             ComponentPool<RectangleDrawable, RenderRegistry>{&m_render_reg}
         };
