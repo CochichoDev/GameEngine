@@ -15,48 +15,70 @@ class TripleBuffer {
         ~TripleBuffer() = default;
 
         void produce(const std::vector<T>& data) {
-            uint8_t idx = spare_index();
-            m_data[idx] = data;
+            while (true) {
+                uint32_t old = m_state.load(std::memory_order_relaxed);
 
-            m_last_written.store(idx, std::memory_order_release);
-        }
-        void produce(std::vector<T>&& data) {
-            uint8_t idx = spare_index();
-            m_data[idx] = std::move(data);
+                uint16_t last = unpack_last(old);
+                uint16_t reading = unpack_reading(old);
 
-            m_last_written.store(idx, std::memory_order_release);
+                uint16_t idx = 0;
+                for (; idx < 3; ++idx) {
+                    if (idx != last && idx != reading) break;
+                }
+
+                m_data[idx] = data;
+                uint32_t desired = pack(idx, reading);
+                if (m_state.compare_exchange_weak(old, desired, 
+                            std::memory_order_acq_rel, 
+                            std::memory_order_acquire)) 
+                {
+                    return;
+                }
+            }
         }
 
         /* Returns true if there is a new frame, false if the frame is the same as before */
         std::pair<const std::vector<T>&, bool> consume() {
-            uint8_t idx = m_last_written.load(std::memory_order_acquire);
+            while (true) {
+                uint32_t old = m_state.load(std::memory_order_relaxed);
 
-            if (idx == m_reading.load(std::memory_order_acquire)) {
-                return std::make_pair(m_data[idx], false);
+                uint16_t last = unpack_last(old);
+                uint16_t reading = unpack_reading(old);
+                
+                if (last == reading) {
+                    return std::pair<const std::vector<T>&, bool>(m_data[last], false);
+                }
+
+                uint32_t desired = pack(last, last);
+                if (m_state.compare_exchange_weak(old, desired, 
+                            std::memory_order_acq_rel, 
+                            std::memory_order_acquire)) {
+
+                    return std::pair<const std::vector<T>&, bool>(m_data[last], true);
+
+                }
+
             }
-
-            m_reading.store(idx, std::memory_order_release);
-            return std::make_pair(m_data[idx], true);
         }
+    
+    private:
 
     private:
-        uint8_t spare_index() const {
-            uint8_t last = m_last_written.load(std::memory_order_acquire);
-            uint8_t reading = m_reading.load(std::memory_order_acquire);
-
-            for (uint8_t i = 0; i < 3; ++i) {
-                if (i != last && i != reading) return i;
-            }
-            assert(false && "No spare buffer found"); 
-            return 0; // unreachable
+        uint32_t pack(uint16_t last, uint16_t reading) {
+            return ((static_cast<uint32_t>(last) << 0x10) | static_cast<uint32_t>(reading));
+        }
+        uint16_t unpack_reading(uint32_t state) {
+            return (state & 0xFFFF);
+        }
+        uint16_t unpack_last(uint32_t state) {
+            return (state >> 0x10);
         }
 
 
     private:
         std::array<std::vector<T>, 3> m_data;
 
-        std::atomic<uint8_t> m_last_written{0};
-        std::atomic<uint8_t> m_reading{0};
+        std::atomic<uint32_t> m_state = 0;
 };
 
 #endif

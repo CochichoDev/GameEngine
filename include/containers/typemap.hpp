@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <type_traits>
 
+
 template<typename... Ts>
 struct TypeMapNode;
 
@@ -20,7 +21,7 @@ template<>
 struct TypeMapNode<> {};
 
 template<typename U, typename T, typename... Ts>
-U& get(TypeMapNode<T, Ts...>& node) {
+auto& get(TypeMapNode<T, Ts...>& node) {
     if constexpr (std::is_same_v<U, T>) {
         return node.value;
     } else {
@@ -28,8 +29,19 @@ U& get(TypeMapNode<T, Ts...>& node) {
     }
 }
 
+template <typename T, typename R>
+class ComponentPool;
+
+template<typename U, typename T, typename R, typename... Ts>
+auto& get(TypeMapNode<ComponentPool<T, R>, Ts...>& node) {
+    if constexpr (std::is_same_v<U, T>)
+        return node.value;
+    else 
+        return get<U>(node.next);
+}
+
 template<typename U>
-U& get(TypeMapNode<>&) {
+auto& get(TypeMapNode<>&) {
     static_assert(sizeof(U) == 0, "Type not found in TypeMap");
 }
 
@@ -79,6 +91,7 @@ std::size_t find(TypeMapNode<>&, std::size_t) {
     static_assert(sizeof(U) == 0, "Type not found in TypeMap");
 }
 
+
 template<typename... Ts>
 class TypeMap {
     public:
@@ -86,7 +99,7 @@ class TypeMap {
         TypeMap(Args&&... args) : nodes (std::forward<Args>(args)...) {}
 
         template<typename U>
-        U& get() {
+        auto& get() {
             return ::get<U>(nodes);
         }
 

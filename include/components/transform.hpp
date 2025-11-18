@@ -6,7 +6,7 @@
 #include "vector.hpp"
 
 struct Transform {
-    Vector2D value;
+    Vector2D<double> value;
 };
 
 template<>

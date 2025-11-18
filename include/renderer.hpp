@@ -2,10 +2,13 @@
 #define RENDERER_H
 
 #include <thread>
+#include <optional>
 
+#include "SDL3/SDL_events.h"
 #include "SDL3/SDL_pixels.h"
 #include "SDL3/SDL_rect.h"
 
+#include "SDL3/SDL_video.h"
 #include "containers/triple_buffer.hpp"
 
 #include "vector.hpp"
@@ -15,23 +18,27 @@
 #include "SDL3/SDL_render.h"
 
 struct RenderCommand {
-    Vector2D pos;
-    Vector2D size;
-    Vector3D color;
+    Vector2D<double> pos;
+    Vector2D<double> size;
+    Vector3D<double> color;
 };
 
 class Renderer {
     public:
-        explicit Renderer(SDLWindow* window)
-        : m_sdl_renderer    (SDLRenderer(window->get()))
+        explicit Renderer()
+        : m_sdl_instance (SDL())
+        , m_sdl_window (480, 240)
         {
             m_running.store(false, std::memory_order_relaxed);
         }
-        ~Renderer() = default;
+        ~Renderer() {
+            m_running.store(false, std::memory_order_relaxed);
+            if (m_render_thread.joinable()) m_render_thread.join();
+        }
 
         void run() {
             m_running.store(true, std::memory_order_relaxed);
-            m_render_thread = std::thread(&Renderer::loop, this);
+            m_render_thread = std::thread(&Renderer::init, this);
         }
 
         void publish_frame(const std::vector<RenderCommand>& new_frame) {
@@ -41,22 +48,32 @@ class Renderer {
             m_cmds.produce(std::move(new_frame));
         }
 
+        bool poll_event(SDL_Event* event) {
+            return SDL_PollEvent(event);
+        }
+
     private:
+        void init() {
+            m_sdl_renderer = new SDLRenderer(m_sdl_window.get());
+            loop();
+        }
+
         void loop() {
             auto next = std::chrono::steady_clock::now();
             while (m_running.load(std::memory_order_relaxed)) {
                 /* Consume all render commands */
-                auto [data, new_frame] = m_cmds.consume();
+                const auto [data, new_frame] = m_cmds.consume();
 
                 if (new_frame) {
                     SDL_SetRenderDrawColor(
-                            m_sdl_renderer.get(), 
+                            m_sdl_renderer->get(), 
                             color::blue_cornflower.x, color::blue_cornflower.y, color::blue_cornflower.z, 
                             SDL_ALPHA_OPAQUE);
-                    SDL_RenderClear(m_sdl_renderer.get());
+                    SDL_RenderClear(m_sdl_renderer->get());
+                    
                     for (auto cmd : data) {
                         SDL_SetRenderDrawColor(
-                                m_sdl_renderer.get(), 
+                                m_sdl_renderer->get(), 
                                 cmd.color.x, cmd.color.y, cmd.color.z, 
                                 SDL_ALPHA_OPAQUE);
 
@@ -66,16 +83,19 @@ class Renderer {
                             static_cast<float>(cmd.size.x), 
                             static_cast<float>(cmd.size.y)
                         };
-                        SDL_RenderFillRect(m_sdl_renderer.get(), &rect);
+                        SDL_RenderFillRect(m_sdl_renderer->get(), &rect);
                     }
+                    
+                    SDL_RenderPresent(m_sdl_renderer->get());
                 }
                 next += m_period;
                 std::this_thread::sleep_until(next);
             }
         }
-
     private:
-        SDLRenderer m_sdl_renderer;
+        SDL m_sdl_instance;
+        SDLWindow   m_sdl_window;
+        SDLRenderer* m_sdl_renderer{nullptr};
 
         std::atomic<bool>   m_running;
         std::thread m_render_thread;

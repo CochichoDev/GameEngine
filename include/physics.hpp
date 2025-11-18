@@ -18,8 +18,8 @@
 
 struct PhysicsSnapshot {
     EntityID    id;
-    Vector2D    pos;
-    Vector2D    speed;
+    Vector2D<double>    pos;
+    Vector2D<double>    speed;
 
     std::size_t transform_idx;
 };
@@ -37,7 +37,7 @@ class PhysicsCore {
         }
 
         void add_physics_entity(EntityID eid, std::size_t transform_idx,
-                Vector2D pos, Vector2D speed, Vector2D acc) {
+                Vector2D<double> pos, Vector2D<double> speed, Vector2D<double> acc) {
             m_msg.enqueue(PhysicsMsg{PhysicsMsg::ADD, eid, transform_idx, PhysicsData{pos, speed, acc}});
         }
 
@@ -79,9 +79,9 @@ class PhysicsCore {
 
     private:
         struct PhysicsData {
-            Vector2D    pos;
-            Vector2D    speed;
-            Vector2D    acc;
+            Vector2D<double>    pos;
+            Vector2D<double>    speed;
+            Vector2D<double>    acc;
         };
 
         struct PhysicsMsg {

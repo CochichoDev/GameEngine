@@ -16,12 +16,12 @@
 #include "physics.hpp"
 #include "renderer.hpp"
 
+#include "SDL3/SDL_events.h"
+
 class World {
     public:
-        explicit World(double width, double height)
-        : m_sdl_instance    (SDL())
-        , m_sdl_window      (SDLWindow(width, height))
-        , m_renderer        (&m_sdl_window)
+        explicit World()
+        : m_sdl_instance (SDL())
         {
             m_running.store(false, std::memory_order_relaxed);
 
@@ -30,19 +30,41 @@ class World {
             });
         }
 
-        ~World() = default;
+        ~World() {
+            m_running.store(false, std::memory_order_relaxed);
+            if (m_world_thread.joinable())
+                m_world_thread.join();
 
-        PhysicsCore& get_physics_ref() noexcept { return m_physics; };
+        }
 
         void run() {
             m_running.store(true, std::memory_order_relaxed);
-            m_world_thread = std::thread(&World::loop, this);
+            m_physics.run();
+            m_renderer.run();
+            loop();
+        }
+
+        EntityID create_entity() {
+            return m_entity_manager.create();
+        }
+
+        template<typename T>
+        void add_component(EntityID owner, T comp) {
+            auto& pool = m_pools.get<T>();
+            pool.add(owner, comp);
+        }
+
+        template<typename T>
+        std::optional<std::size_t> get_component_idx(EntityID eid) {
+            return m_pools.get<T>().find(eid);
         }
 
     private:
         void loop() {
             auto next = std::chrono::steady_clock::now();
             while (m_running.load(std::memory_order_relaxed)) {
+                poll_events();
+
                 /* Recover last recorded physics snapshot and update transforms */
                 process_physics_snapshot();
 
@@ -54,6 +76,18 @@ class World {
             }
         }
 
+        void poll_events() {
+            SDL_Event event;
+            while (m_renderer.poll_event(&event)) {
+                switch (event.type) {
+                    case SDL_EVENT_QUIT:
+                        m_running.store(false, std::memory_order_relaxed);
+                    default:
+                        break;
+                }
+            }
+        }
+
         void process_physics_snapshot() {
             uint32_t tick{0};
             do {
@@ -61,7 +95,7 @@ class World {
                 
                 for (size_t idx = 0; idx < last_snapshot.size(); ++idx) {
                     const PhysicsSnapshot& snap = last_snapshot[idx];
-                    auto& transform_c = m_pools.get<ComponentPool<Transform, void>>().entry_at(snap.transform_idx);
+                    auto& transform_c = m_pools.get<Transform>().entry_at(snap.transform_idx);
                     /* Update the position of the Entity */
                     if (snap.id == transform_c.owner) {
                         transform_c.data.value = snap.pos;
@@ -83,7 +117,7 @@ class World {
                         auto& comp = pool.entry_at(renderable.comp_idx).data;
                         comp.build_render_cmd(
                                 render_commands,
-                                this->m_pools.get<ComponentPool<Transform, void>>().entry_at(comp.transform_idx));
+                                this->m_pools.get<Transform>().entry_at(comp.transform_idx).data);
                     }
                 });
             }
@@ -91,15 +125,14 @@ class World {
         }
 
     private:
+        SDL m_sdl_instance;
         std::thread m_world_thread;
         std::atomic<bool> m_running;
-
-        SDL m_sdl_instance;
-        SDLWindow   m_sdl_window;
 
         PhysicsCore m_physics;
         Renderer    m_renderer;
 
+        EntityManager   m_entity_manager;
         PhysicsRegistry m_physics_reg;
         RenderRegistry  m_render_reg;
 

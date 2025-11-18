@@ -1,14 +1,17 @@
 #ifndef VECTOR_H
 #define VECTOR_H
 
-struct Vector2D {
-    double x;
-    double y;
+#include <type_traits>
 
-    Vector2D operator*(double d) const noexcept {
+template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+struct Vector2D {
+    T x;
+    T y;
+
+    Vector2D operator*(T d) const noexcept {
         return {x*d, y*d};
     }
-    Vector2D& operator*=(double d) noexcept {
+    Vector2D& operator*=(T d) noexcept {
         x *= d;
         y *= d;
         return *this;
@@ -24,18 +27,19 @@ struct Vector2D {
         return *this;
     }
 
-    friend Vector2D operator*(double d, const Vector2D& v) noexcept { return {v.x*d, v.y*d}; }
+    friend Vector2D<T> operator*(T d, const Vector2D<T>& v) noexcept { return {v.x*d, v.y*d}; }
 };
 
+template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
 struct Vector3D {
-    double x;
-    double y;
-    double z;
+    T x;
+    T y;
+    T z;
 
-    Vector3D operator*(double d) const noexcept {
+    Vector3D operator*(T d) const noexcept {
         return {x*d, y*d, z*d};
     }
-    Vector3D& operator*=(double d) noexcept {
+    Vector3D& operator*=(T d) noexcept {
         x *= d;
         y *= d;
         z *= d;
@@ -53,7 +57,7 @@ struct Vector3D {
         return *this;
     }
 
-    friend Vector3D operator*(double d, const Vector3D& v) noexcept { return {v.x*d, v.y*d, v.z*d}; }
+    friend Vector3D operator*(T d, const Vector3D<T>& v) noexcept { return {v.x*d, v.y*d, v.z*d}; }
 };
 
 #endif

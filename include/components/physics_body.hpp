@@ -23,7 +23,7 @@ class PhysicsBody {
             , transform_idx (transform_idx)        
         {
             m_physics.add_physics_entity(
-                    eid, transform_idx, Vector2D{0,0}, speed, Vector2D{0,0}
+                    eid, transform_idx, Vector2D<double>{0,0}, speed, Vector2D<double>{0,0}
             );
         }
 
@@ -50,19 +50,19 @@ class PhysicsBody {
 
     public:
         size_t      transform_idx;
-        Vector2D    speed{0,0};
+        Vector2D<double>    speed{0,0};
 };
 
 template<>
 struct ComponentPoolTraits<PhysicsBody, PhysicsRegistry> {
     template<typename... Ts>
     static void init(ComponentPool<PhysicsBody, PhysicsRegistry>& self, TypeMap<Ts...>& pools) {
-        pools.template get<ComponentPool<Transform>>().subscribe_remove_listener(
+        pools.template get<Transform>().subscribe_remove_listener(
             [&](EntityID owner) {
                 self.remove(owner);
             }
         );
-        pools.template get<ComponentPool<Transform>>().subscribe_swap_listener(
+        pools.template get<Transform>().subscribe_swap_listener(
             [&](EntityID owner, size_t new_idx) {
                 auto idx = self.find(owner);
                 if (idx.has_value()) {

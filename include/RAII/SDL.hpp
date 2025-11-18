@@ -4,7 +4,6 @@
 #include "SDL3/SDL_video.h"
 #include <SDL3/SDL.h>
 
-#include <exception>
 #include <iostream>
 
 class SDL {
@@ -58,7 +57,7 @@ class SDLWindow {
             return *this;
         }
 
-        SDL_Window*& get() {
+        SDL_Window* get() {
             return m_window;
         }
 
@@ -97,7 +96,7 @@ class SDLRenderer {
             return *this;
         }
 
-        SDL_Renderer*& get() {
+        SDL_Renderer* get() {
             return m_renderer;
         }
 

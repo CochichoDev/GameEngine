@@ -21,6 +21,8 @@ struct ComponentEntry {
     EntityID    owner;
     T           data;
 
+    ComponentEntry(EntityID eid, const T& d) : owner (eid), data (d) {}
+
     ComponentEntry(ComponentEntry&& other) noexcept 
         : owner (std::move(other.owner))
         , data (std::move(other.data))
@@ -92,8 +94,8 @@ class ComponentPool {
             size_t idx = m_data.size();
 
             if constexpr (!std::is_same_v<R, void>) {
-                assert(m_reg->find(owner) != std::nullopt && "Registry already has an entry for this component type");
-                m_reg->add(owner, {owner, m_pool_id, idx});
+                assert(m_reg->data.find(owner) == std::nullopt && "Registry already has an entry for this component type");
+                m_reg->data.add(owner, {owner, m_pool_id, idx});
             }
 
             m_data.emplace_back(ComponentEntry<T>(owner, data));
