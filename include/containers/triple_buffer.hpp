@@ -29,8 +29,8 @@ class TripleBuffer {
                 m_data[idx] = data;
                 uint32_t desired = pack(idx, reading);
                 if (m_state.compare_exchange_weak(old, desired, 
-                            std::memory_order_acq_rel, 
-                            std::memory_order_acquire)) 
+                            std::memory_order_release, 
+                            std::memory_order_relaxed)) 
                 {
                     return;
                 }
@@ -51,8 +51,8 @@ class TripleBuffer {
 
                 uint32_t desired = pack(last, last);
                 if (m_state.compare_exchange_weak(old, desired, 
-                            std::memory_order_acq_rel, 
-                            std::memory_order_acquire)) {
+                            std::memory_order_acquire, 
+                            std::memory_order_relaxed)) {
 
                     return std::pair<const std::vector<T>&, bool>(m_data[last], true);
 
